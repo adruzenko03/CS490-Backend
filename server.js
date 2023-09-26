@@ -27,13 +27,24 @@ const io =new Server(server,{
 
 io.on('connection', function(socket) {
   connection.query(
-    `select title from film, inventory, rental
-    where film.film_id=inventory.film_id and inventory.inventory_id=rental.inventory_id
+    `select film.*, language.name from film, inventory, rental, language
+    where film.film_id=inventory.film_id and inventory.inventory_id=rental.inventory_id and language.language_id=film.language_id
     group by film.film_id
     order by Count(rental_id) DESC
     limit 5`, 
     (err, rows, fields) => {
-      socket.emit("queries", rows)
+      connection.query(
+        //DATE_FORMAT(last_update, '%m/%d/%Y %H:%i') as l_u
+        `select actor.*, COUNT(film.film_id) as film_count from film, film_actor, actor
+        where film.film_id=film_actor.film_id and film_actor.actor_id=actor.actor_id
+        group by actor.actor_id
+        order by Count(film.film_id) DESC
+        limit 5`, 
+        (err, rows2, fields) => {
+          console.log(rows2)
+          socket.emit("queries", {"movies":rows,"actors":rows2})
+        })
+
   })
     
 });
