@@ -11,6 +11,7 @@ const connection=mysql.createConnection({
   database: 'sakila'
 })
 connection.connect()
+
 const app = express();
 const server = createServer(app);
 
@@ -41,10 +42,43 @@ io.on('connection', function(socket) {
         order by Count(film.film_id) DESC
         limit 5`, 
         (err, rows2, fields) => {
-          console.log(rows2)
           socket.emit("queries", {"movies":rows,"actors":rows2})
         })
 
   })
-    
+  socket.on('movieSearch', (search)=>{
+    if(search.param=="Name"){
+      connection.query(
+        `select * from film
+        where title like '%${search.input}%'
+        limit 100`, 
+        (err, rows, fields) => {
+          console.log(rows)
+          socket.emit("searchRes", rows)
+        })
+    }
+    if(search.param=="Actor"){
+      connection.query(
+        `select film.* from film, film_actor, actor
+        where film.film_id=film_actor.film_id and film_actor.actor_id=actor.actor_id
+        and concat(first_name," ",last_name)='${search.input}'
+        limit 100`, 
+        (err, rows, fields) => {
+          console.log(rows)
+          socket.emit("searchRes", rows)
+        })
+    }
+    if(search.param=="Genre"){
+      connection.query(
+        `select film.* from film, film_category, category
+        where film.film_id=film_category.film_id and film_category.category_id=category.category_id
+        and name='${search.input}'
+        limit 100`, 
+        (err, rows, fields) => {
+          console.log(rows)
+          socket.emit("searchRes", rows)
+        })
+    }
+  })    
 });
+

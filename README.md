@@ -1,3 +1,13 @@
-# CS490-Backend
+# cs490 Backend
 
-Run by doing the following in terminal "npm install" for first time installation followed by "node server" any time you want to run it
+**Requires Node.js**
+
+## Project setup
+```
+npm install
+```
+
+### Running
+```
+node server
+```
