@@ -54,7 +54,7 @@ io.on('connection', function(socket) {
         limit 100`, 
         (err, rows, fields) => {
           console.log(rows)
-          socket.emit("searchRes", rows)
+          socket.emit("movieRes", rows)
         })
     }
     if(search.param=="Actor"){
@@ -65,20 +65,32 @@ io.on('connection', function(socket) {
         limit 100`, 
         (err, rows, fields) => {
           console.log(rows)
-          socket.emit("searchRes", rows)
+          socket.emit("movieRes", rows)
         })
     }
     if(search.param=="Genre"){
       connection.query(
         `select film.* from film, film_category, category
         where film.film_id=film_category.film_id and film_category.category_id=category.category_id
-        and name='${search.input}'
-        limit 100`, 
+        and name='${search.input}'`, 
         (err, rows, fields) => {
           console.log(rows)
-          socket.emit("searchRes", rows)
+          socket.emit("movieRes", rows)
         })
     }
-  })    
+  })   
+  socket.on('custSearch',(searchParams)=>{
+      connection.query(
+        `select customer.*,group_concat(IF(return_date is null, title, NULL)) as rented from inventory, rental, customer,film
+        where inventory.inventory_id=rental.inventory_id and rental.customer_id=customer.customer_id and film.film_id=inventory.film_id
+        and (customer.customer_id='${searchParams.ID}' or '${searchParams.ID}'='undefined')
+        and (customer.first_name='${searchParams.First}' or '${searchParams.First}'='undefined')
+        and (customer.last_name='${searchParams.Last}' or '${searchParams.Last}'='undefined')
+        group by customer.customer_id
+        `,
+        (err, rows, fields) => {
+          socket.emit("customerRes",rows)
+        })
+  })
 });
 
