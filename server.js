@@ -92,5 +92,15 @@ io.on('connection', function(socket) {
           socket.emit("customerRes",rows)
         })
   })
+  socket.on('pdfGen',()=>{
+    connection.query(
+      `select customer.*,group_concat(IF(return_date is null, title, NULL)) as rented from inventory, rental, customer,film
+      where inventory.inventory_id=rental.inventory_id and rental.customer_id=customer.customer_id and film.film_id=inventory.film_id
+      group by customer.customer_id
+      having count(IF(return_date is null, title, NULL))
+      `,(err,rows,fields) =>{
+        socket.emit("pdfRes",rows)
+      })
+  })
 });
 
