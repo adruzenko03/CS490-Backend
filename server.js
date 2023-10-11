@@ -102,5 +102,35 @@ io.on('connection', function(socket) {
         socket.emit("pdfRes",rows)
       })
   })
+  socket.on('custRent',(params)=>{
+    connection.query(
+      `
+            select customer.* from customer, staff
+      where customer.first_name='${params.customer.split(" ")[0]}' and customer.last_name='${params.customer.split(" ")[1]}'
+      and customer.active=1 and staff.active=1 and staff.store_id=customer.store_id and staff.staff_id=${params.staff}
+      `,(err,rows,fields) =>{
+        if(rows==undefined || rows.length==0){
+          socket.emit("custResp", false, "Both the customer and staff must be active members of the same store")
+        }
+        else{
+          connection.query(`select * from inventory as I
+          where store_id=${rows[0].store_id} and film_id=${params.film} and 
+          not exists
+          (select * from rental 
+            where rental.inventory_id=I.inventory_id and return_date is null
+             )`,(err,rows2,fields)=>{
+              if(rows2==undefined || rows2.length==0){
+                socket.emit("custResp", false, "This movie is not currently available at this store")
+              }
+              else{
+                connection.query(`insert into rental (rental_date, inventory_id, customer_id,staff_id,last_update)
+                values (now(), ${rows2[0].inventory_id},${rows[0].customer_id},${params.staff},now())`,()=>{
+                  socket.emit("custResp",true)
+                })
+              }
+             })
+        }
+      })
+  })
 });
 
