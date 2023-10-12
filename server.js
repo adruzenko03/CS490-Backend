@@ -79,15 +79,16 @@ io.on('connection', function (socket) {
   })
   socket.on('custSearch', (searchParams) => {
     connection.query(
-      `select customer.*,group_concat(IF(return_date is null, title, NULL)) as rented from inventory, rental, customer,film
-        where inventory.inventory_id=rental.inventory_id and rental.customer_id=customer.customer_id and film.film_id=inventory.film_id
+      `select customer.*,address.*, group_concat(IF(return_date is null, title, NULL)) as rented from inventory, rental, customer,film, address
+        where inventory.inventory_id=rental.inventory_id and rental.customer_id=customer.customer_id and film.film_id=inventory.film_id and address.address_id=customer.address_id
         and (customer.customer_id='${searchParams.ID}' or '${searchParams.ID}'='undefined')
         and (customer.first_name='${searchParams.First}' or '${searchParams.First}'='undefined')
         and (customer.last_name='${searchParams.Last}' or '${searchParams.Last}'='undefined')
         group by customer.customer_id
         union
-        select customer.*,null from customer
-        where (customer.customer_id='${searchParams.ID}' or '${searchParams.ID}'='undefined')
+        select customer.*,address.*,null from customer,address
+        where address.address_id=customer.address_id
+        and (customer.customer_id='${searchParams.ID}' or '${searchParams.ID}'='undefined')
         and (customer.first_name='${searchParams.First}' or '${searchParams.First}'='undefined')
         and (customer.last_name='${searchParams.Last}' or '${searchParams.Last}'='undefined')
         `,
@@ -161,6 +162,51 @@ io.on('connection', function (socket) {
           socket.emit('addConf')
         })
       })
+    })
+  })
+  socket.on('upCust',(params)=>{
+    let name=params.customer.split(" ")
+    if(name.length!=2){
+      socket.emit('upConf',"Error: Invalid Name")
+    }
+    connection.query(`select * from customer where first_name='${name[0]}' and last_name='${name[1]}'`,(err,cust,fields)=>{
+      if(cust.length==0){
+        socket.emit('upConf',"Error: Invalid Name")
+      }
+      else{
+        connection.query(`update customer set 
+        first_name=case when '${params.firstName}'!='undefined' then '${params.firstName}' else first_name end,
+        last_name=case when '${params.lastName}'!='undefined' then '${params.lastName}' else last_name end,
+        store_id=case when '${params.store}'!='undefined' then '${params.store}' else store_id end,
+        email=case when '${params.email}'!='undefined' then '${params.email}' else email end,
+        last_update=now()
+        where customer_id=${cust[0].customer_id}
+        `,()=>{
+          connection.query(`update address set
+          address=case when '${params.address}'!='undefined' then '${params.address}' else address end,
+          address2=case when '${params.address2}'!='undefined' then '${params.address2}' else address2 end,
+          district=case when '${params.district}'!='undefined' then '${params.district}' else district end,
+          postal_code=case when '${params.postalCode}'!='undefined' then '${params.postalCode}' else postal_code end,
+          phone=case when '${params.phone}'!='undefined' then '${params.phone}' else phone end
+          where address_id=${cust[0].address_id}`,()=>{
+           
+              connection.query(`select * from city where city='${params.city}'`,(err,rows,fields)=>{
+                if(rows.length!=0){
+                  connection.query(`update address set city_id=${rows[0].city_id} where address_id=${cust[0].address_id}`,()=>{
+                    socket.emit('upConf',"Successfully updated "+params.type)
+                  })
+                }
+                else if(params.city!=undefined){
+                  socket.emit('upConf',"Choose a valid city")
+                }
+                else{
+                  socket.emit('upConf',"Successfully updated "+params.type)
+                }
+              })
+          })
+        })
+      
+      }  
     })
   })
 });
