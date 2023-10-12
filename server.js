@@ -132,5 +132,23 @@ io.on('connection', function(socket) {
         }
       })
   })
+  socket.on('deleteCust',(custID)=>{
+    connection.query(`delete from payment where customer_id=${custID}`,()=>{
+      connection.query(`delete from rental where customer_id=${custID}`,()=>{
+        connection.query(`delete from customer where customer_id=${custID}`,()=>{
+          socket.emit('deleteConf')
+        })
+      })
+    })
+  }),
+  socket.on('finRent',(movie,customer_id)=>{
+    connection.query(`select inventory.inventory_id from film,inventory,rental
+    where film.title='${movie}' and film.film_id=inventory.film_id and 
+    inventory.inventory_id=rental.inventory_id and rental.customer_id=${customer_id} and return_date is null`,(err,rows,fields)=>{
+      connection.query(`update rental set return_date=now() where customer_id=${customer_id} and inventory_id=${rows[0].inventory_id}`,()=>{
+        socket.emit('rentConf')
+      })
+    })
+  })
 });
 
